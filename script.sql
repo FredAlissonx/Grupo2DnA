@@ -119,7 +119,6 @@ FROM churn
 GROUP BY exited;
 
 
-
 /*
 --| Data distribution |--*/	
 
@@ -183,7 +182,8 @@ SELECT
     COUNT(*) AS frequency
 FROM
     churn
-GROUP BY age_range;
+GROUP BY ageRange
+ORDER BY ageRange;
 
 -- Tenure
 SELECT
@@ -223,6 +223,62 @@ ORDER by estimatedSalaryRange;
 */
 
 -- ------------------------------------------------------------------------
+
+/*
+-----||| Data Cleaning |||-----
+*/
+
+/*--| Handling missing values |--*/
+SELECT
+	COUNT(*) AS missingValues
+FROM churn
+WHERE NULL IN (customerid, creditscore, geography, gender, age, tenure, balance, numofproducts, hascrcard, isactivemember, estimatedsalary, exited);
+
+/*--| Removing duplicates |--*/
+SELECT
+	customerId
+FROM churn
+GROUP BY customerId
+HAVING COUNT(*) > 1; -- We don't have duplicate customer
+
+/*--| Checking for possible outliers or unrealistic values in numerical variables |--*/
+-- Age
+WITH age_cte AS (
+	SELECT
+		DISTINCT age
+	FROM churn
+	WHERE
+		ABS(age - (SELECT AVG(age) FROM churn)) > (SELECT 2 * STDDEV(age) FROM churn)
+)
+SELECT
+	DISTINCT age
+FROM age_cte
+ORDER BY age; -- Based on this and the age frequency in line 180, 90s and 80 years is a good outlier to remove
+
+DELETE FROM churn
+WHERE age BETWEEN 80 AND 99;
+
+
+-- Balance
+SELECT
+	DISTINCT balance
+FROM churn
+WHERE ABS(balance - (SELECT AVG(balance) FROM churn)) > (SELECT 2 * STDDEV(balance) FROM churn)
+ORDER BY balance;
+
+
+
+-- Estimated salary
+SELECT
+	estimatedSalary
+FROM churn
+WHERE
+	ABS(estimatedSalary - (SELECT AVG(estimatedSalary) FROM churn)) > (SELECT 2 * STDDEV(estimatedSalary) FROM churn);
+
+-- 
+
+
+
 
 
 
