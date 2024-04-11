@@ -127,6 +127,7 @@ GROUP BY exited;
 SELECT
 	MIN(creditscore) AS minCreditScore,
     MAX(creditscore) AS maxCreditScore,
+    MAX(creditscore) - MIN(creditscore) AS differenceCreditscore,
     ROUND(AVG(creditscore), 2) AS averageCreditScore
 FROM churn;
 
@@ -134,6 +135,7 @@ FROM churn;
 SELECT
 	MIN(age) AS minAge,
     MAX(age) AS maxAge,
+    MAX(age) - MIN(age) AS differenceAge,
     FLOOR(AVG(age)) As averageAge
 FROM churn;
 
@@ -141,6 +143,7 @@ FROM churn;
 SELECT
 	MIN(tenure) AS minTenure,
     MAX(tenure) AS maxTenure,
+    MAX(tenure) - MIN(tenure) AS differenceTenure,
     FLOOR(AVG(tenure)) As averageTenure
 FROM churn;
 
@@ -148,6 +151,7 @@ FROM churn;
 SELECT
 	MIN(balance) AS minBalance,
     MAX(balance) AS maxBalance,
+    MAX(balance) - MIN(balance) AS differenceBalance,
     ROUND(AVG(balance), 2) As averageBalance
 FROM churn;
 
@@ -155,6 +159,7 @@ FROM churn;
 SELECT
 	MIN(numofproducts) AS minNumOfProducts,
     MAX(numofproducts) AS maxNumOfProducts,
+    MAX(NumOfProducts) - MIN(NumOfProducts) AS differenceProducts,
     CEIL(AVG(numofproducts)) As averageNumberOfProducts
 FROM churn;
 
@@ -162,6 +167,7 @@ FROM churn;
 SELECT
 	MIN(estimatedsalary) AS minEstimatedSalary,
     MAX(estimatedsalary) AS maxEstimatedSalary,
+    ROUND(MAX(EstimatedSalary) - MIN(EstimatedSalary),2) AS differenceSalary,
     ROUND(AVG(estimatedsalary), 2) AS averageEstimatedSalary
 FROM churn;
 
@@ -174,7 +180,8 @@ SELECT
     COUNT(*) AS frequency
 FROM
     churn
-GROUP BY creditScoreRange;
+GROUP BY creditScoreRange
+ORDER BY creditScoreRange;
 
 -- Age
 SELECT
@@ -199,7 +206,8 @@ SELECT
     COUNT(*) AS frequency
 FROM
     churn
-GROUP BY balanceRange;
+GROUP BY balanceRange
+ORDER BY balancerange;
 
 -- Number of products
 SELECT
@@ -260,22 +268,49 @@ WHERE age BETWEEN 80 AND 99;
 
 
 -- Balance
-SELECT
+SELECT -- To identify which is outlier
 	DISTINCT balance
 FROM churn
 WHERE ABS(balance - (SELECT AVG(balance) FROM churn)) > (SELECT 2 * STDDEV(balance) FROM churn)
-ORDER BY balance;
+ORDER BY balance; 
+    
+WITH balance_cte AS (
+	SELECT
+		DISTINCT balance
+	FROM churn
+	WHERE ABS(balance - (SELECT AVG(balance) FROM churn)) > (SELECT 2 * STDDEV(balance) FROM churn)
+	ORDER BY balance
+)
+DELETE FROM churn
+WHERE balance IN (SELECT balance FROM balance_cte);
 
-
+-- Credit score
+SELECT -- To identify which is outlier
+	DISTINCT creditScore
+FROM churn
+WHERE ABS(creditScore - (SELECT AVG(creditScore) FROM churn)) > (SELECT 2 * STDDEV(creditScore) FROM churn)
+ORDER BY creditScore; -- Important number of data to analyze, so we will not remove
 
 -- Estimated salary
-SELECT
+SELECT 
 	estimatedSalary
 FROM churn
 WHERE
-	ABS(estimatedSalary - (SELECT AVG(estimatedSalary) FROM churn)) > (SELECT 2 * STDDEV(estimatedSalary) FROM churn);
+	ABS(estimatedSalary - (SELECT AVG(estimatedSalary) FROM churn)) > (SELECT 2 * STDDEV(estimatedSalary) FROM churn); -- Important number of data to analyze, so we will not remove
 
--- 
+-- Number of products
+SELECT -- To identify which is outlier
+	DISTINCT NumOfProducts
+FROM churn
+WHERE ABS(NumOfProducts - (SELECT AVG(NumOfProducts) FROM churn)) > (SELECT 2 * STDDEV(NumOfProducts) FROM churn)
+ORDER BY NumOfProducts; -- Important number of data to analyze, so we will not remove
+
+-- Tenure
+SELECT -- To identify which is outlier
+	DISTINCT Tenure
+FROM churn
+WHERE ABS(Tenure - (SELECT AVG(Tenure) FROM churn)) > (SELECT 2 * STDDEV(Tenure) FROM churn)
+ORDER BY Tenure; -- Important number of data to analyze, so we will not remove
 
 
 
