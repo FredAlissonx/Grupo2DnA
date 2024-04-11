@@ -128,7 +128,21 @@ SELECT
 	MIN(creditscore) AS minCreditScore,
     MAX(creditscore) AS maxCreditScore,
     MAX(creditscore) - MIN(creditscore) AS differenceCreditscore,
-    ROUND(AVG(creditscore), 2) AS averageCreditScore
+    ROUND(AVG(creditscore), 2) AS averageCreditScore,
+    (
+		SELECT
+			ROUND(AVG(creditscore), 2)
+		FROM (
+			SELECT
+				@rowindex := @rowindex + 1 AS rowindex,
+				churn.creditscore AS creditscore
+			FROM
+				churn,
+				(SELECT @rowindex := -1) AS init
+		ORDER BY churn.creditscore
+		) AS n
+		WHERE n.rowindex IN (FLOOR(@rowindex / 2), CEIL(@rowindex / 2))
+    ) AS median
 FROM churn;
 
 -- Age
@@ -136,15 +150,44 @@ SELECT
 	MIN(age) AS minAge,
     MAX(age) AS maxAge,
     MAX(age) - MIN(age) AS differenceAge,
-    FLOOR(AVG(age)) As averageAge
+    FLOOR(AVG(age)) As averageAge,
+    (
+		SELECT
+			ROUND(AVG(age), 2)
+		FROM (
+			SELECT
+				@rowindex := @rowindex + 1 AS rowindex,
+				churn.age AS age
+			FROM
+				churn,
+				(SELECT @rowindex := -1) AS init
+		ORDER BY churn.age
+		) AS n
+		WHERE n.rowindex IN (FLOOR(@rowindex / 2), CEIL(@rowindex / 2))
+    ) AS median
 FROM churn;
+
 
 -- Tenure
 SELECT
 	MIN(tenure) AS minTenure,
     MAX(tenure) AS maxTenure,
     MAX(tenure) - MIN(tenure) AS differenceTenure,
-    FLOOR(AVG(tenure)) As averageTenure
+    FLOOR(AVG(tenure)) As averageTenure,
+    (
+		SELECT
+			ROUND(AVG(tenure), 2)
+		FROM (
+			SELECT
+				@rowindex := @rowindex + 1 AS rowindex,
+				churn.tenure AS tenure
+			FROM
+				churn,
+				(SELECT @rowindex := -1) AS init
+		ORDER BY churn.tenure
+		) AS n
+		WHERE n.rowindex IN (FLOOR(@rowindex / 2), CEIL(@rowindex / 2))
+    ) AS median
 FROM churn;
 
 -- Balance
@@ -152,7 +195,21 @@ SELECT
 	MIN(balance) AS minBalance,
     MAX(balance) AS maxBalance,
     MAX(balance) - MIN(balance) AS differenceBalance,
-    ROUND(AVG(balance), 2) As averageBalance
+    ROUND(AVG(balance), 2) As averageBalance,
+    (
+		SELECT
+			ROUND(AVG(balance), 2)
+		FROM (
+			SELECT
+				@rowindex := @rowindex + 1 AS rowindex,
+				churn.balance AS balance
+			FROM
+				churn,
+				(SELECT @rowindex := -1) AS init
+		ORDER BY churn.balance
+		) AS n
+		WHERE n.rowindex IN (FLOOR(@rowindex / 2), CEIL(@rowindex / 2))
+    ) AS median
 FROM churn;
 
 -- Number of products
@@ -160,7 +217,21 @@ SELECT
 	MIN(numofproducts) AS minNumOfProducts,
     MAX(numofproducts) AS maxNumOfProducts,
     MAX(NumOfProducts) - MIN(NumOfProducts) AS differenceProducts,
-    CEIL(AVG(numofproducts)) As averageNumberOfProducts
+    CEIL(AVG(numofproducts)) As averageNumberOfProducts,
+    (
+		SELECT
+			ROUND(AVG(numofproducts), 2)
+		FROM (
+			SELECT
+				@rowindex := @rowindex + 1 AS rowindex,
+				churn.numofproducts AS numofproducts
+			FROM
+				churn,
+				(SELECT @rowindex := -1) AS init
+		ORDER BY churn.numofproducts
+		) AS n
+		WHERE n.rowindex IN (FLOOR(@rowindex / 2), CEIL(@rowindex / 2))
+    ) AS median
 FROM churn;
 
 -- Estimated Salary per year
@@ -168,7 +239,21 @@ SELECT
 	MIN(estimatedsalary) AS minEstimatedSalary,
     MAX(estimatedsalary) AS maxEstimatedSalary,
     ROUND(MAX(EstimatedSalary) - MIN(EstimatedSalary),2) AS differenceSalary,
-    ROUND(AVG(estimatedsalary), 2) AS averageEstimatedSalary
+    ROUND(AVG(estimatedsalary), 2) AS averageEstimatedSalary,
+    (
+		SELECT
+			ROUND(AVG(estimatedsalary), 2)
+		FROM (
+			SELECT
+				@rowindex := @rowindex + 1 AS rowindex,
+				churn.estimatedsalary AS estimatedsalary
+			FROM
+				churn,
+				(SELECT @rowindex := -1) AS init
+		ORDER BY churn.estimatedsalary
+		) AS n
+		WHERE n.rowindex IN (FLOOR(@rowindex / 2), CEIL(@rowindex / 2))
+    ) AS median
 FROM churn;
 
 
@@ -311,6 +396,21 @@ SELECT -- To identify which is outlier
 FROM churn
 WHERE ABS(Tenure - (SELECT AVG(Tenure) FROM churn)) > (SELECT 2 * STDDEV(Tenure) FROM churn)
 ORDER BY Tenure; -- Important number of data to analyze, so we will not remove
+
+/*
+-----||| END - Data Cleaning |||-----
+*/
+
+-- ------------------------------------------------------------------------
+
+/*
+-----||| Analysis focused only on those who churned |||-----
+*/
+
+
+
+
+
 
 
 
