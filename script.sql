@@ -139,7 +139,7 @@ SELECT
 			FROM
 				churn,
 				(SELECT @rowindex := -1) AS init
-		ORDER BY churn.creditscore
+			ORDER BY churn.creditscore
 		) AS n
 		WHERE n.rowindex IN (FLOOR(@rowindex / 2), CEIL(@rowindex / 2))
     ) AS median
@@ -404,8 +404,231 @@ ORDER BY Tenure; -- Important number of data to analyze, so we will not remove
 -- ------------------------------------------------------------------------
 
 /*
------||| Analysis focused only on those who churned |||-----
+-----||| Business Questions |||-----
 */
+
+
+/*
+-----| Analysis list |-----
+1 - Customer Demographics
+2 - Customer Behavior
+3 - Financial Details
+4 - Product Utilization
+*/
+
+-- | Customer Demographics | --
+
+-- 1 - What is the age distribution among the customers who exited the bank?
+SELECT -- First we will identify the minimum age, the maximum age and quantity of the customers who churned
+	MIN(age) AS minAge,
+    MAX(age) AS maxAge,
+    COUNT(*) AS quantityOfCustomers
+FROM churn
+WHERE exited = 1;
+
+-- Answer to the question
+WITH number_cte AS (
+    SELECT
+        MIN(age) AS minAge,
+        MAX(age) AS maxAge,
+        CEIL((MAX(age) - MIN(age)) / 4) AS number
+    FROM churn
+    WHERE exited = 1
+)
+SELECT
+    SUM(CASE WHEN c.age BETWEEN minAge AND minAge + number THEN 1 ELSE 0 END) AS `18to32`,
+    SUM(CASE WHEN c.age BETWEEN minAge + number + 1 AND minAge + number * 2 + 1 THEN 1 ELSE 0 END) AS `33to47`,
+    SUM(CASE WHEN c.age BETWEEN minAge + number * 2 + 2 AND minAge + number * 3 + 2 THEN 1 ELSE 0 END) AS `48to62`,
+    SUM(CASE WHEN c.age BETWEEN minAge + number * 3 + 3 AND maxAge THEN 1 ELSE 0 END) AS `63to74`
+FROM
+	churn c,
+	number_cte n
+WHERE exited = 1;
+
+
+-- 2 - How does the gender factor affect the churn rate? This won´t be answered with SQL, but it will give some resources to think
+-- Quantity and rate of churn by gender
+SELECT
+	gender,
+    COUNT(gender) AS frequency,
+    ROUND(COUNT(gender) / (SELECT COUNT(gender) FROM churn WHERE exited = 1) * 100) AS rateInPercentage
+FROM churn
+WHERE exited = 1
+GROUP BY gender;
+
+-- Quantity and rate of churn by gender per country
+SELECT
+	Geography,
+    gender,
+    COUNT(gender) AS frequency,
+    ROUND(COUNT(gender) / (SELECT COUNT(gender) FROM churn WHERE exited = 1) * 100) AS rateInPercentage
+FROM churn
+WHERE exited = 1
+GROUP BY Geography, gender
+ORDER BY Geography;
+
+-- Quantity and rate of a specified country
+SELECT
+	geography,
+    gender,
+    COUNT(gender) AS frequency,
+    ROUND(COUNT(gender) / (SELECT COUNT(gender) FROM churn WHERE exited = 1 AND geography = 'Germany') * 100) AS rateInPercentage -- (Same as  in WHERE)
+FROM churn c
+WHERE exited = 1 AND Geography = 'Germany' -- Just change this if you want different country, there are (France, Germany and Spain)
+GROUP BY gender;
+
+
+-- 3 - What geographical location has the highest churn rate?
+SELECT
+	geography,
+    COUNT(*) AS frequency,
+    ROUND(COUNT(customerId) / (SELECT COUNT(customerId) FROM churn WHERE exited = 1) * 100, 2) AS rateInPercentageFromTotalOfChurn
+FROM churn
+WHERE exited = 1
+GROUP BY geography
+ORDER BY frequency DESC;
+
+
+
+-- | Customer Behavior | --
+
+-- 4 - Who are more likely to churn - customers with a credit card or without?
+-- For those who churned
+SELECT
+	IF(hascrcard = 1, 'With Credit Card', 'Without Credit Card') AS creditCard,
+    COUNT(customerId) AS frequency,
+    ROUND(COUNT(customerId) / (SELECT COUNT(customerId) FROM churn WHERE exited = 1) * 100, 2) AS churnRate
+FROM churn
+WHERE exited = 1
+GROUP BY hascrcard;
+
+-- General
+SELECT
+	IF(hascrcard = 1, 'With Credit Card', 'Without Credit Card') AS creditCard,
+    COUNT(customerId) AS totalCustomers,
+    SUM(exited) AS churnedCustomers,
+    ROUND(SUM(exited) / COUNT(customerId) * 100, 2) AS churnRate
+FROM churn
+GROUP BY creditCard;
+
+
+-- 5 - Does the customer's activity level (IsActiveMember) correlate with the churn rate?
+-- For those who churned
+SELECT
+	IF(isActiveMember = 1, 'Active Member', 'No Active Member') AS isActiveMember,
+    COUNT(customerId) AS churnedCustomers,
+    ROUND(COUNT(customerId) / (SELECT COUNT(customerId) FROM churn WHERE exited = 1) * 100, 2) AS churnRate
+FROM churn
+WHERE exited = 1
+GROUP BY IsActiveMember;
+
+-- General
+SELECT
+    IF(isActiveMember = 1, 'Active Member', 'No Active Member') AS isActiveMember,
+    COUNT(customerId) AS totalCustomers,
+    SUM(exited) AS churnedCustomers,
+    ROUND(SUM(exited) / COUNT(customerId) * 100,2) AS churnRate
+FROM churn
+GROUP BY IsActiveMember;
+
+
+-- 6 - What is the tenure distribution among customers who churned?
+SELECT
+    FLOOR(tenure / 2) * 2 AS tenureRange,
+    COUNT(customerId) AS totalCustomers,
+    SUM(exited) AS churnedCustomers,
+    ROUND(SUM(exited) / COUNT(customerId) * 100,2) AS churnRate
+FROM
+    churn
+GROUP BY tenureRange
+ORDER BY churnedCustomers DESC;
+
+
+-- 7 - How does having multiple products/services associate with the churn rate?
+SELECT
+	numofproducts,
+    COUNT(customerId) AS totalCustomers,
+    SUM(exited) AS churnedCustomers,
+    ROUND(SUM(exited) / COUNT(customerId) * 100,2) AS churnRate
+FROM churn
+GROUP BY numofproducts
+ORDER BY churnedCustomers DESC;
+
+
+-- | Financial Details | --
+
+-- 8 - Is there any relationship between the balance in the bank account and the churn rate?
+SELECT
+    FLOOR(balance / 30000) * 30000 AS balanceRange,
+    COUNT(*) AS totalCustomers,
+    SUM(exited) AS churnedCustomers,
+    ROUND(SUM(exited) / COUNT(*) * 100, 2) AS churnRate
+FROM churn
+GROUP BY balanceRange
+ORDER BY balanceRange;
+
+
+-- 9 - Does a customer’s Credit Score affect their likelihood to churn?
+SELECT
+    FLOOR(creditScore / 50) * 50 AS creditScoreRange,
+    COUNT(*) AS totalCustomers,
+    SUM(exited) AS churnedCustomers,
+    ROUND(SUM(exited) / COUNT(*) * 100, 2) AS churnRate
+FROM churn
+GROUP BY creditScoreRange
+ORDER BY creditScoreRange;
+
+
+-- 10 - Does estimated salary have any impact on the churn rate?
+
+-- Those who churned
+SELECT
+    CASE
+        WHEN estimatedSalary < 50000 THEN 'Low Salary'
+        WHEN estimatedSalary >= 50000 AND estimatedSalary < 100000 THEN 'Medium Salary'
+        ELSE 'High Salary'
+    END AS salaryRange,
+    COUNT(*) AS churnedCustomers,
+    ROUND(COUNT(customerId) / (SELECT COUNT(customerId) FROM churn WHERE exited = 1) * 100, 2) AS churnRate
+FROM churn
+WHERE exited = 1
+GROUP BY salaryRange
+ORDER BY salaryRange;
+
+-- General
+SELECT
+    CASE
+        WHEN estimatedSalary < 50000 THEN 'Low Salary'
+        WHEN estimatedSalary >= 50000 AND estimatedSalary < 100000 THEN 'Medium Salary'
+        ELSE 'High Salary'
+    END AS salaryRange,
+    SUM(exited) AS churnedCustomers,
+    COUNT(*) AS totalCustomers,
+    ROUND(SUM(exited) / COUNT(*) * 100, 2) AS churnRate
+FROM churn
+GROUP BY salaryRange
+ORDER BY salaryRange;
+
+
+-- | Product Utilization | --
+
+-- 11 - Are customers using multiple bank's products/services more likely to stay with the bank?
+SELECT
+    SUM(IF(numofproducts <= 1, 1, 0)) AS lessOrEqual1,
+    SUM(IF(numofproducts > 1, 1, 0)) AS greaterThan1,
+    ROUND((SUM(IF(numofproducts <= 1, 1, 0)) / (SELECT COUNT(*) FROM churn WHERE exited = 1)) * 100, 2) AS churnRateLessOrEqual1,
+    ROUND((SUM(IF(numofproducts > 1, 1, 0)) / (SELECT COUNT(*) FROM churn WHERE exited = 1)) * 100, 2) AS churnRateGreaterThan1
+FROM
+    churn
+WHERE exited = 1;
+
+
+-- 13 - How does customers' engagement with different bank’s products/services change over their tenure?
+
+
+
+
+
 
 
 
