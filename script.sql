@@ -623,7 +623,40 @@ FROM
 WHERE exited = 1;
 
 
--- 13 - How does customers' engagement with different bank’s products/services change over their tenure?
+-- 12 - How does customers' engagement with different bank’s products/services change over their tenure?
+-- For those who churned
+SELECT
+	tenure,
+    SUM(numofproducts) AS numberOfProductsTernure,
+    CEIL(AVG(NumOfProducts)) AS avgNumberOfProductsPerCustomer
+FROM churn
+WHERE exited = 1
+GROUP BY tenure
+ORDER BY tenure;
+
+-- Didn't churn
+SELECT
+	tenure,
+    SUM(numofproducts) AS numberOfProductsTernure,
+    CEIL(AVG(NumOfProducts)) AS avgNumberOfProductsPerCustomer
+FROM churn
+WHERE exited = 0
+GROUP BY tenure
+ORDER BY tenure;
+
+-- 13 - What is the cost impact of churn?
+-- Loss at the moment of the churn
+SELECT
+	CEIL(SUM(balance)) AS loss
+FROM churn
+WHERE exited = 1;
+
+-- Loss within 12 months
+SELECT
+	CEIL(SUM(balance)) + CEIL(SUM(estimatedSalary) * 12) AS lossWithin12months
+FROM churn
+WHERE exited = 1;
+
 
 
 
